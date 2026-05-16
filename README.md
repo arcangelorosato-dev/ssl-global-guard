@@ -32,7 +32,7 @@ It solves a simple but critical problem: expired certificates and broken website
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/ssl-global-guard.git
+git clone https://github.com/arcangelorosato-dev/ssl-global-guard.git
 cd ssl-global-guard
 ```
 
