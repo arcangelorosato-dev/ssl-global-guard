@@ -18,9 +18,7 @@ It solves a simple but critical problem: expired certificates and broken website
 - 🔁 **Automation-friendly JSON output** designed for workflow tools such as n8n.
 
 ## 📸 Screenshot / Demo
-
-> Replace or extend these placeholders with your final dashboard, workflow, or terminal demo.
-
+ 
 ![SSL Global Guard workflow](docs/workflow_image.png)
 
 ![Welcome screen](docs/welcome.jpeg)
