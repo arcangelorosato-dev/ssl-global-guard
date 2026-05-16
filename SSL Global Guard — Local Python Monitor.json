@@ -1,0 +1,452 @@
+{
+  "name": "SSL Global Guard — Local Python Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🔐 SSL Global Guard (Local Python version)\n\nMonitors SSL/TLS certificates using your **Local Python API** — faster, secure, and no external tracking.\n\n**Two independent flows:**\n- 📩 **Telegram Bot** — on-demand `/check domain.com`\n- ⏰ **Hourly Scheduled Scan** — monitors a domain list and broadcasts alerts\n\n**API used:** `http://57.131.39.125:5000/check-ssl`",
+        "height": 250,
+        "width": 440,
+        "color": 4
+      },
+      "id": "note-main",
+      "name": "Sticky Note — Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-1420, 1840],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "eaa31cc8-ba24-4481-a3c9-271cb64dbb1b",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "position": [-1328, 2064],
+      "typeVersion": 1.1,
+      "notesInFlow": true,
+      "notes": "Triggers whenever a user sends a message to the Telegram bot.",
+      "credentials": {
+        "telegramApi": {
+          "id": "qu8pWbTjXul5t7RF",
+          "name": "Telegram SSL BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "combinator": "or",
+          "conditions": [
+            {
+              "id": "is-start",
+              "leftValue": "={{ $json.message.text }}",
+              "operator": { "operation": "equals", "type": "string" },
+              "rightValue": "/start"
+            },
+            {
+              "id": "is-check",
+              "leftValue": "={{ $json.message.text }}",
+              "operator": { "operation": "startsWith", "type": "string" },
+              "rightValue": "/check"
+            }
+          ]
+        }
+      },
+      "id": "da9fb023-e3cf-42fc-b32e-150d92c40659",
+      "name": "Is /start or /check?",
+      "type": "n8n-nodes-base.if",
+      "position": [-1104, 2064],
+      "typeVersion": 2.2,
+      "notesInFlow": true,
+      "notes": "Filters incoming inputs to process only valid command patterns."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "b18a38fc",
+              "leftValue": "={{ $json.message.text }}",
+              "operator": { "operation": "startsWith", "type": "string" },
+              "rightValue": "/check"
+            }
+          ]
+        }
+      },
+      "id": "20e43302-0a0a-47bb-98a1-52d7771272b0",
+      "name": "Route Command",
+      "type": "n8n-nodes-base.if",
+      "position": [-880, 2064],
+      "typeVersion": 2.2,
+      "notesInFlow": true,
+      "notes": "Splits the logic: true branch goes to manual domain check, false branch saves new subscriber."
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nif (!staticData.subscribers) { staticData.subscribers = []; }\nconst chatId = $json.message.chat.id;\nconst username = $json.message.from.username || $json.message.from.first_name;\nif (!staticData.subscribers.some(s => s.chat_id === chatId)) {\n  staticData.subscribers.push({ chat_id: chatId, username: username });\n}\nreturn $json;"
+      },
+      "id": "bc778ac3-f4a6-4761-9f3e-41e3a525da18",
+      "name": "Save to Local Memory",
+      "type": "n8n-nodes-base.code",
+      "position": [-640, 1968],
+      "typeVersion": 2,
+      "notesInFlow": true,
+      "notes": "Stores the user chat ID inside the workflow persistent storage memory."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "🎉 *Welcome!* Sottoscrizione attivata.\nUsa `/check dominio.com` per un controllo istantaneo.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "b485bffa-d085-4c59-b9fd-e796150cc1a4",
+      "name": "Send Welcome",
+      "type": "n8n-nodes-base.telegram",
+      "position": [-416, 1968],
+      "typeVersion": 1.1,
+      "notesInFlow": true,
+      "notes": "Dispatches a configuration confirmation message to the newly subscribed chat.",
+      "credentials": {
+        "telegramApi": {
+          "id": "qu8pWbTjXul5t7RF",
+          "name": "Telegram SSL BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.message.text;\nconst domain = text.replace('/check', '').trim().replace(/^https?:\\/\\//, '').replace(/\\/$/, '');\nreturn {\n  domain: domain || null,\n  chat_id: $json.message.chat.id\n};"
+      },
+      "id": "6a218a14-c729-422c-8159-d8d0b9495bdd",
+      "name": "Extract Domain",
+      "type": "n8n-nodes-base.code",
+      "position": [-640, 2144],
+      "typeVersion": 2,
+      "notesInFlow": true,
+      "notes": "Parses incoming user text block and extracts a clean domain string format."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "has-domain",
+              "leftValue": "={{ $json.domain }}",
+              "operator": { "operation": "notEmpty", "type": "string" }
+            }
+          ]
+        }
+      },
+      "id": "fd85cd91-ad7c-4777-bfe3-d94e7cacb302",
+      "name": "Has Domain?",
+      "type": "n8n-nodes-base.if",
+      "position": [-416, 2144],
+      "typeVersion": 2.2,
+      "notesInFlow": true,
+      "notes": "Ensures the processed output is not blank before building the API endpoint request."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "⚠️ *Dominio mancante!* Scrivi: `/check google.com`",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "2cb814b3-471e-487e-8e0f-88c917be41e1",
+      "name": "Send Format Error",
+      "type": "n8n-nodes-base.telegram",
+      "position": [-208, 2240],
+      "typeVersion": 1.1,
+      "notesInFlow": true,
+      "notes": "Alerts the user back if the parsed text parameter evaluates to empty.",
+      "credentials": {
+        "telegramApi": {
+          "id": "qu8pWbTjXul5t7RF",
+          "name": "Telegram SSL BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://[IP]]:5000/check-ssl",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{ $json.domain }}\"\n}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "c00a90fa-8fa8-4d43-9234-255b0737f6be",
+      "name": "Check SSL Manual",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [-208, 2064],
+      "typeVersion": 4.2,
+      "notesInFlow": true,
+      "notes": "Performs a POST payload request to the custom remote python web server endpoint."
+    },
+    {
+      "parameters": {
+        "jsCode": "const domain = $node['Extract Domain'].json.domain;\nconst chatId = $node['Extract Domain'].json.chat_id;\nlet msg = '';\n\nif ($json.status === 'success') {\n  msg = `✅ *${domain}*\\n└ Certificato valido! Giorni rimanenti: *${$json.giorni_rimanenti}* (scade il ${$json.data_scadenza})`;\n} else {\n  msg = `❌ *${domain}*\\n└ Errore: ${$json.messaggio}`;\n}\n\nreturn { chat_id: chatId, messaggio: msg };"
+      },
+      "id": "c087d9fb-3012-445e-8361-27c56bf51f7a",
+      "name": "Manual Logic",
+      "type": "n8n-nodes-base.code",
+      "position": [32, 2064],
+      "typeVersion": 2,
+      "notesInFlow": true,
+      "notes": "Compiles the text response block checking the status object from python handler."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.messaggio }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "bb6297a7-2872-43c5-a519-dbd47db4265a",
+      "name": "Send Manual Reply",
+      "type": "n8n-nodes-base.telegram",
+      "position": [256, 2064],
+      "typeVersion": 1.1,
+      "notesInFlow": true,
+      "notes": "Sends execution payload results back into target telegram chat scope.",
+      "credentials": {
+        "telegramApi": {
+          "id": "qu8pWbTjXul5t7RF",
+          "name": "Telegram SSL BOT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "hours"}]
+        }
+      },
+      "id": "88b260c7-0378-4833-9c45-7faed482be3d",
+      "name": "Hourly Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [-1360, 2624],
+      "typeVersion": 1.2,
+      "notesInFlow": true,
+      "notes": "Fires up execution automatically every hour interval cycle."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "766f685c-66f6-4f6c-866f-685c66f6cf6c",
+              "name": "days_limit",
+              "value": 30,
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "6a4acb50-4685-40fb-b6a0-bdd0ef377494",
+      "name": "Configuration X",
+      "type": "n8n-nodes-base.set",
+      "position": [-1136, 2624],
+      "typeVersion": 3.4,
+      "notesInFlow": true,
+      "notes": "Sets safety tracking parameters to evaluate certificate status."
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  { domain: 'google.com' },\n  { domain: 'expired.badssl.com' }\n];"
+      },
+      "id": "7280b0e1-edc0-4034-a588-2b56972677b4",
+      "name": "Domain List",
+      "type": "n8n-nodes-base.code",
+      "position": [-912, 2624],
+      "typeVersion": 2,
+      "notesInFlow": true,
+      "notes": "Supplies target testing collection arrays to feed the request runner."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://[IP]:5000/check-ssl",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{ $json.domain }}\"\n}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "11f0543c-d790-499e-9867-f77d01934980",
+      "name": "Check SSL",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [-688, 2624],
+      "typeVersion": 4.2,
+      "notesInFlow": true,
+      "notes": "Dispatches payload data array out into python checker application backend."
+    },
+    {
+      "parameters": {
+        "jsCode": "const daysLimit = $node['Configuration X'].json.days_limit;\nconst currentDomain = $node['Domain List'].json.domain;\nlet msg = '';\nlet alert = false;\n\nif ($json.status === 'success') {\n  const giorni = $json.giorni_rimanenti;\n  if (giorni <= daysLimit) {\n    msg = `⏳ In scadenza rapida: rimangono solo ${giorni} giorni! (scade il ${$json.data_scadenza})`;\n    alert = true;\n  }\n} else {\n  msg = `❌ Certificato non valido o scaduto!`;\n  alert = true;\n}\n\nreturn { host: currentDomain, messaggio: msg, invia: alert };"
+      },
+      "id": "a6cc3936-b37a-450a-a56a-b6ef96389edb",
+      "name": "Message Logic",
+      "type": "n8n-nodes-base.code",
+      "position": [-480, 2624],
+      "typeVersion": 2,
+      "notesInFlow": true,
+      "notes": "Compares returned remaining days against local setup variables threshold."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "check-alert",
+              "leftValue": "={{ $json.invia }}",
+              "operator": {"operation": "true", "type": "boolean"}
+            }
+          ]
+        }
+      },
+      "id": "109aa0b5-bcb5-46af-8cba-0a40bee39400",
+      "name": "Filter Alerts Only",
+      "type": "n8n-nodes-base.if",
+      "position": [-256, 2624],
+      "typeVersion": 2.2,
+      "notesInFlow": true,
+      "notes": "Filters execution out if the tested host certificate satisfies secure requirements."
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "errori",
+        "options": {}
+      },
+      "id": "44f59f0a-7652-4184-8acd-e17a16b47958",
+      "name": "Group Results",
+      "type": "n8n-nodes-base.aggregate",
+      "position": [-32, 2624],
+      "typeVersion": 1,
+      "notesInFlow": true,
+      "notes": "Merges multiple disjoint error records items array inside one singular summary packet."
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst subs = staticData.subscribers || [];\nif (subs.length === 0) return [];\nreturn subs;"
+      },
+      "id": "133f584f-a90d-4043-9afe-fc97dc1146eb",
+      "name": "Get Subs from Memory",
+      "type": "n8n-nodes-base.code",
+      "position": [192, 2624],
+      "typeVersion": 2,
+      "notesInFlow": true,
+      "notes": "Extracts the array compilation list of target subscribers records metadata from local space."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "=🚨 *SSL Security Report*\n\n{{ $node['Group Results'].json.errori.map(e => '🌐 *' + e.host + '*\\n└ ' + e.messaggio).join('\\n\\n') }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "025fdc51-620c-4c87-a932-e7c58f9bfac6",
+      "name": "Telegram Broadcast",
+      "type": "n8n-nodes-base.telegram",
+      "position": [416, 2624],
+      "typeVersion": 1.1,
+      "notesInFlow": true,
+      "notes": "Dispatches warning report alerts blocks broadcast out into target destinations logs.",
+      "credentials": {
+        "telegramApi": {
+          "id": "qu8pWbTjXul5t7RF",
+          "name": "Telegram SSL BOT"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{"node": "Is /start or /check?", "type": "main", "index": 0}]]
+    },
+    "Is /start or /check?": {
+      "main": [[{"node": "Route Command", "type": "main", "index": 0}]]
+    },
+    "Route Command": {
+      "main": [
+        [{"node": "Extract Domain", "type": "main", "index": 0}],
+        [{"node": "Save to Local Memory", "type": "main", "index": 0}]
+      ]
+    },
+    "Save to Local Memory": {
+      "main": [[{"node": "Send Welcome", "type": "main", "index": 0}]]
+    },
+    "Extract Domain": {
+      "main": [[{"node": "Has Domain?", "type": "main", "index": 0}]]
+    },
+    "Has Domain?": {
+      "main": [
+        [{"node": "Check SSL Manual", "type": "main", "index": 0}],
+        [{"node": "Send Format Error", "type": "main", "index": 0}]
+      ]
+    },
+    "Check SSL Manual": {
+      "main": [[{"node": "Manual Logic", "type": "main", "index": 0}]]
+    },
+    "Manual Logic": {
+      "main": [[{"node": "Send Manual Reply", "type": "main", "index": 0}]]
+    },
+    "Hourly Trigger": {
+      "main": [[{"node": "Configuration X", "type": "main", "index": 0}]]
+    },
+    "Configuration X": {
+      "main": [[{"node": "Domain List", "type": "main", "index": 0}]]
+    },
+    "Domain List": {
+      "main": [[{"node": "Check SSL", "type": "main", "index": 0}]]
+    },
+    "Check SSL": {
+      "main": [[{"node": "Message Logic", "type": "main", "index": 0}]]
+    },
+    "Message Logic": {
+      "main": [[{"node": "Filter Alerts Only", "type": "main", "index": 0}]]
+    },
+    "Filter Alerts Only": {
+      "main": [[{"node": "Group Results", "type": "main", "index": 0}]]
+    },
+    "Group Results": {
+      "main": [[{"node": "Get Subs from Memory", "type": "main", "index": 0}]]
+    },
+    "Get Subs from Memory": {
+      "main": [[{"node": "Telegram Broadcast", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
