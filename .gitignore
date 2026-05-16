@@ -1,0 +1,15 @@
+# Ambiente virtuale locale
+venv/
+.venv/
+env/
+
+# Cache di Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# File di configurazione di sistema o IDE
+.vscode/
+.idea/
+.DS_Store
